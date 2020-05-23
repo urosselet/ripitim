@@ -1,16 +1,10 @@
-/*  Example playing an enveloped noise source
-		using Mozzi sonification library.
-
-		Demonstrates Ead (exponential attack decay).
+/*  Music box using mozzi for sound generation.
 
 		Circuit: Audio output on digital pin 9 on a Uno or similar, or
 		DAC/A14 on Teensy 3.1, or
 		check the README or http://sensorium.github.com/Mozzi/
 
-		Mozzi help/discussion/announcements:
-		https://groups.google.com/forum/#!forum/mozzi-users
-
-		Tim Barrass 2012, CC by-nc-sa
+		Ulysse Rosselet, 2020, CC by-nc-sa
 */
 
 #include <MozziGuts.h>
