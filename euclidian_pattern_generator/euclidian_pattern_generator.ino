@@ -12,7 +12,7 @@ void setup() {
 
 void euclidianGenerator(int length, int triggers)
 {
-  int pattern[length];
+  boolean pattern[length];
   float stepIncrement = (float)length / (float)triggers;
   float stepPosition = 0.0;
   int arrayIndex = 0;
@@ -25,7 +25,7 @@ void euclidianGenerator(int length, int triggers)
     stepPosition += stepIncrement;
     arrayIndex = round(stepPosition);
   }
-  Serial.print("int euclid_");
+  Serial.print("boolean euclid_");
   Serial.print(length);
   Serial.print("_");
   Serial.print(triggers);
