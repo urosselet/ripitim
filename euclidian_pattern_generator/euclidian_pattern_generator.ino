@@ -5,37 +5,38 @@ void setup() {
   {
     ; // wait for serial port to connect. Needed for native USB port only
   }
-  for (int i = 0; i < 16; i++) {
-    euclidianGenerator(16, i + 1);
-  }
+  euclidianGenerator(8);
+  euclidianGenerator(13);
+  euclidianGenerator(16);
 }
 
-void euclidianGenerator(int length, int triggers)
+void euclidianGenerator(int length)
 {
-  boolean pattern[length];
-  float stepIncrement = (float)length / (float)triggers;
-  float stepPosition = 0.0;
-  int arrayIndex = 0;
-  for (int i = 0; i < length; i++) {
-    pattern[i] = 0;
-  }
-  for (int j = 0; j < triggers; j++)
-  {
-    pattern[arrayIndex] = 1;
-    stepPosition += stepIncrement;
-    arrayIndex = round(stepPosition);
-  }
-  Serial.print("boolean euclid_");
-  Serial.print(length);
-  Serial.print("_");
-  Serial.print(triggers);
-  Serial.print("[] = {");
-  for (int k = 0; k < length; k++) {
-    Serial.print(pattern[k]);
-    Serial.print(", ");
-  }
-  Serial.println("};");
-
+    boolean euclidPatterns[length][length];
+    for (int i = 0; i < length; i++)
+    {
+        boolean pattern[length];
+        float stepIncrement = (float)length / (float)i;
+        float stepPosition = 0.0;
+        int arrayIndex = 0;
+        for (int j = 0; j < length; j++)
+        {
+            euclidPatterns[i][j] = 0;
+        }
+        for (int k = 0; k < i; k++)
+        {
+             euclidPatterns[i][arrayIndex] = 1;
+            stepPosition += stepIncrement;
+            arrayIndex = round(stepPosition);
+        }
+    }
+    for(int m = 0; m < length; m++){
+      for(int n = 0; n < length; n++){
+        Serial.print(euclidPatterns[m][n]);
+        Serial.print("\t");
+      }
+      Serial.println();
+    }
 }
 
 void loop() {
