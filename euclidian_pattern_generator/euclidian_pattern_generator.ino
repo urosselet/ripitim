@@ -5,8 +5,6 @@ void setup() {
   {
     ; // wait for serial port to connect. Needed for native USB port only
   }
-  euclidianGenerator(8);
-  euclidianGenerator(13);
   euclidianGenerator(16);
 }
 
@@ -16,16 +14,16 @@ void euclidianGenerator(int length)
     for (int i = 0; i < length; i++)
     {
         boolean pattern[length];
-        float stepIncrement = (float)length / (float)i;
+        float stepIncrement = (float)length / (float)(i+1);
         float stepPosition = 0.0;
         int arrayIndex = 0;
         for (int j = 0; j < length; j++)
         {
             euclidPatterns[i][j] = 0;
         }
-        for (int k = 0; k < i; k++)
+        for (int k = 0; k <= i; k++)
         {
-             euclidPatterns[i][arrayIndex] = 1;
+            euclidPatterns[i][arrayIndex] = 1;
             stepPosition += stepIncrement;
             arrayIndex = round(stepPosition);
         }

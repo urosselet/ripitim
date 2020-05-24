@@ -7,6 +7,8 @@
 		Ulysse Rosselet, 2020, CC by-nc-sa
 */
 
+
+
 #include <MozziGuts.h>
 #include <Oscil.h>                      // oscillator template
 #include <tables/brownnoise8192_int8.h> // recorded audio wavetable
@@ -18,6 +20,36 @@
 
 #define CONTROL_RATE 256 // Hz, powers of 2 are most reliable
 
+boolean euclid16[16][16] = {
+  {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+  {1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0},
+  {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0},
+  {1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0},
+  {1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0},
+  {1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0},
+  {1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0},
+  {1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0},
+  {1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0},
+  {1, 0, 1, 1, 0, 1, 1, 0, 1, 0, 1, 1, 0, 1, 1, 0},
+  {1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1},
+  {1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1},
+  {1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1},
+  {1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1},
+  {1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1},
+  {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
+};
+
+int scales[8][8] = {
+  {0, 2, 4, 5, 7, 9, 11, 12}, // majeur
+  {0, 2, 3, 5, 7, 9, 10, 12}, // dorien
+  {0, 1, 3, 5, 7, 8, 10, 12}, // phrygien
+  {0, 2, 4, 6, 7, 9, 11, 12}, // lydien
+  {0, 2, 4, 5, 7, 9, 10, 12}, // mixolydien
+  {0, 2, 3, 5, 7, 8, 10, 12}, // aeolien
+  {0, 1, 3, 5, 6, 8, 10, 12}, // locrien
+  {0, 2, 4, 5, 7, 9, 11, 12}  // majeur
+};
+
 // use: Oscil <table_size, update_rate> oscilName (wavetable), look in .h file of table #included above
 Oscil<SIN2048_NUM_CELLS, AUDIO_RATE> aSin(SIN2048_DATA);
 Oscil<BROWNNOISE8192_NUM_CELLS, AUDIO_RATE> aNoise(BROWNNOISE8192_DATA);
@@ -28,12 +60,7 @@ Ead nEnvelope(CONTROL_RATE); // resolution will be CONTROL_RATE
 int gain;
 int noiseGain;
 
-//int seqGate[] = {1,1, 1, 1, 1, 1, 1, 1};
-int seqGate[] = {1, 0, 0, 1, 1, 0, 1, 0};
-int seqGateLength = 8;
-int seqPitch[] = {0, 2, 4, 5, 7};
-//int seqPitch[] = {0, 4, 7, 12, 19, 16, 7, -5, -1};
-int seqPitchLength = 5;
+int seqPitchLength = 8;
 
 int gateStep = 0;
 int gateStepIncrement = 1;
@@ -49,7 +76,14 @@ int oddEigth;
 
 int baseNote = 60;
 
-char mode = 'A';
+int steppingMode = 0;
+int selectedScale = 0;
+
+int gatePatternIndex = 6;
+
+const char ROTARY_SWITCH_INPUT_PIN = 0;
+const char WHEEL_INPUT_PIN = 1;
+
 
 void setup()
 {
@@ -62,7 +96,7 @@ void setup()
   evenEigth = quarterNoteMs * grooveRatio;
   oddEigth = quarterNoteMs * (1.0 - grooveRatio);
   kDelay.start(quarterNoteMs);
-  mode = 'C';
+  steppingMode = 2;
 
   Serial.begin(9600);
   while (!Serial)
@@ -74,53 +108,55 @@ void setup()
 
 void updateControl()
 {
-  if (Serial.available() > 0)
-  {
-    mode = Serial.read();
-  }
+  int rotarySwitchRawValue = mozziAnalogRead(ROTARY_SWITCH_INPUT_PIN);
+  int rotarySwitchPosition = map(rotarySwitchRawValue, 0, 1023, 0, 11);
+  steppingMode =  rotarySwitchPosition % 4;
+  selectedScale = rotarySwitchPosition / 2;
+
+  int wheelRawValue = mozziAnalogRead(WHEEL_INPUT_PIN);
+  int gatePatternIndex = wheelRawValue >> 6;
+
   if (kDelay.ready())
   {
-    Serial.print(mode);
-    Serial.print("\t");
+    //    Serial.print(steppingMode);
+    //    Serial.print("\t");
 
     if (globalStep % 64 == 0)
     {
       pitchStep = 0;
       gateStep = 0;
-      //if(mode == 'A'){ mode = 'B';} else {mode = 'A';}
     }
-    boolean gateON = seqGate[gateStep % seqGateLength] == 1;
-    Serial.print(gateON);
-    Serial.print("\t");
+    boolean gateON = euclid16[gatePatternIndex][gateStep % 16] == 1;
+    //    Serial.print(gateON);
+    //    Serial.print("\t");
 
     if (gateON)
     { // action if gate ON
       kEnvelope.start(5, 600);
       int noteIndex = pitchStep % seqPitchLength;
-      Serial.print(noteIndex);
-      Serial.print("\t");
-
-      int note = baseNote + seqPitch[noteIndex];
-      Serial.print(note);
-      Serial.print("\t");
+      int note = baseNote + scales[selectedScale][noteIndex];
+//      Serial.print(noteIndex);
+//      Serial.print("\t");
+//      Serial.print(note);
+//      Serial.print("\t");
       aSin.setFreq(mtof(float(note)));
-      switch (mode)
+      switch (steppingMode)
       {
-      case 'A':
-        pitchStep += 2;
-        break;
-      case 'B':
-        pitchStep += 1 + globalStep % 16;
-        break;
-      case 'C':
-        pitchStep += 1 + globalStep % 8;
-        break;
-      case 'D':
-        pitchStep = seqPitchLength - (globalStep % seqPitchLength);
-        break;
-      default:
-        pitchStep += 1;
-        break;
+        case 0:
+          pitchStep += 2;
+          break;
+        case 1:
+          pitchStep += 1 + globalStep % 16;
+          break;
+        case 2:
+          pitchStep += 1 + globalStep % 8;
+          break;
+        case 3:
+          pitchStep = seqPitchLength - (globalStep % seqPitchLength);
+          break;
+        default:
+          pitchStep += 1;
+          break;
       }
     }
     else
@@ -143,7 +179,7 @@ void updateControl()
       stepMillis = evenEigth;
     }
     kDelay.start(stepMillis);
-    Serial.println();
+//    Serial.println();
   }
   aNoise.setPhase(rand((unsigned int)BROWNNOISE8192_NUM_CELLS)); // jump around in audio noise table to disrupt obvious looping
   gain = (int)kEnvelope.next();
