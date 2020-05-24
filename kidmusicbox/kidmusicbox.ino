@@ -17,6 +17,8 @@
 #include <EventDelay.h>
 #include <mozzi_rand.h>
 #include <mozzi_midi.h>
+#include <Adafruit_NeoPixel.h>
+
 
 #define CONTROL_RATE 256 // Hz, powers of 2 are most reliable
 
@@ -49,6 +51,7 @@ int scales[8][8] = {
   {0, 1, 3, 5, 6, 8, 10, 12}, // locrien
   {0, 2, 4, 5, 7, 9, 11, 12}  // majeur
 };
+
 
 // use: Oscil <table_size, update_rate> oscilName (wavetable), look in .h file of table #included above
 Oscil<SIN2048_NUM_CELLS, AUDIO_RATE> aSin(SIN2048_DATA);
@@ -84,9 +87,16 @@ int gatePatternIndex = 6;
 const char ROTARY_SWITCH_INPUT_PIN = 0;
 const char WHEEL_INPUT_PIN = 1;
 
+#define NEOPIXELPIN 6
+
+Adafruit_NeoPixel strip = Adafruit_NeoPixel(8, NEOPIXELPIN, NEO_GRB + NEO_KHZ800);
 
 void setup()
 {
+  strip.begin();
+  strip.setBrightness(16);
+  strip.show(); // Initialize all pixels to 'off'
+
   // use float to set freq because it will be small and fractional
   aNoise.setFreq((float)AUDIO_RATE / BROWNNOISE8192_SAMPLERATE);
   aSin.setFreq(440); // set the frequency
@@ -113,6 +123,29 @@ void updateControl()
   steppingMode =  rotarySwitchPosition % 4;
   selectedScale = rotarySwitchPosition / 2;
 
+ uint32_t color;
+  switch(selectedScale){
+    case 0:
+    color = strip.Color(255,0,0);
+    break;    
+    case 1:
+    color = strip.Color(0,255,0);
+    break;
+    case 2:
+    color = strip.Color(0,0,255);
+    break;
+    case 3:
+    color = strip.Color(255,0,255);
+    break;
+    case 4:
+    color = strip.Color(255,255,0);
+    break;
+    case 5:
+    color = strip.Color(0,255,255);
+    break;
+    
+  }
+
   int wheelRawValue = mozziAnalogRead(WHEEL_INPUT_PIN);
   int gatePatternIndex = wheelRawValue >> 6;
 
@@ -132,14 +165,20 @@ void updateControl()
 
     if (gateON)
     { // action if gate ON
+      strip.clear();
       kEnvelope.start(5, 600);
       int noteIndex = pitchStep % seqPitchLength;
       int note = baseNote + scales[selectedScale][noteIndex];
-//      Serial.print(noteIndex);
-//      Serial.print("\t");
-//      Serial.print(note);
-//      Serial.print("\t");
+      //      Serial.print(noteIndex);
+      //      Serial.print("\t");
+      //      Serial.print(note);
+      //      Serial.print("\t");
       aSin.setFreq(mtof(float(note)));
+ 
+
+      strip.setPixelColor(noteIndex, color);
+      strip.show();
+
       switch (steppingMode)
       {
         case 0:
@@ -179,7 +218,7 @@ void updateControl()
       stepMillis = evenEigth;
     }
     kDelay.start(stepMillis);
-//    Serial.println();
+    //    Serial.println();
   }
   aNoise.setPhase(rand((unsigned int)BROWNNOISE8192_NUM_CELLS)); // jump around in audio noise table to disrupt obvious looping
   gain = (int)kEnvelope.next();
