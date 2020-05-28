@@ -43,13 +43,22 @@ boolean euclid16[16][16] = {
 
 int scales[8][8] = {
   {0, 2, 4, 5, 7, 9, 11, 12}, // majeur
+  {0, 2, 3, 5, 7, 9, 11, 12}, // mineur jazz
+  {0, 1, 3, 5, 7, 8, 11, 12}, // phrygien
+  {0, 3, 3, 5, 7, 10, 10, 12}, // penta mineure
+  {0, 7, 12, 15, 17, 19, 22, 24}, // 2 octave penta min
+  {0, 2, 3, 5, 6, 8, 9, 11} // ton demi-ton
+};
+
+int scalesModes[8][8] = {
+  {0, 2, 4, 5, 7, 9, 11, 12}, // ionien
   {0, 2, 3, 5, 7, 9, 10, 12}, // dorien
   {0, 1, 3, 5, 7, 8, 10, 12}, // phrygien
   {0, 2, 4, 6, 7, 9, 11, 12}, // lydien
   {0, 2, 4, 5, 7, 9, 10, 12}, // mixolydien
   {0, 2, 3, 5, 7, 8, 10, 12}, // aeolien
   {0, 1, 3, 5, 6, 8, 10, 12}, // locrien
-  {0, 2, 4, 5, 7, 9, 11, 12}  // majeur
+  {0, 2, 4, 5, 7, 9, 11, 12}  // ionien
 };
 
 
@@ -122,6 +131,8 @@ void updateControl()
   int rotarySwitchPosition = map(rotarySwitchRawValue, 0, 1023, 0, 11);
   steppingMode =  rotarySwitchPosition % 4;
   selectedScale = rotarySwitchPosition / 2;
+  int wheelRawValue = mozziAnalogRead(WHEEL_INPUT_PIN);
+  int gatePatternIndex = wheelRawValue >> 6;
 
  uint32_t color;
   switch(selectedScale){
@@ -146,8 +157,6 @@ void updateControl()
     
   }
 
-  int wheelRawValue = mozziAnalogRead(WHEEL_INPUT_PIN);
-  int gatePatternIndex = wheelRawValue >> 6;
 
   if (kDelay.ready())
   {
