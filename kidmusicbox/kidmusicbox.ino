@@ -132,7 +132,7 @@ void updateControl()
 {
 
 if(arcadeButton.isPressed()){
-  arcadeButton.ledOn();
+  arcadeButton.ledOn(gain >> 1);
 } else {
   arcadeButton.ledOff();
 }
@@ -162,7 +162,6 @@ if(arcadeButton.isPressed()){
     case 5:
       color = strip.Color(0, 255, 255);
       break;
-
   }
 
 

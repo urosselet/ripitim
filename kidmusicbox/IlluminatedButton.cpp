@@ -1,13 +1,12 @@
 #include "IlluminatedButton.h"
 
-
 bool IlluminatedButton::isPressed()
 {
     return this->button.isPressed();
 }
-void IlluminatedButton::ledOn()
+void IlluminatedButton::ledOn(byte intensity)
 {
-    led.on();
+    led.on(intensity);
 }
 void IlluminatedButton::ledOff()
 {

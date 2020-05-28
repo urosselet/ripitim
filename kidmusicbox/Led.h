@@ -8,7 +8,7 @@ class Led {
   public:
     Led(byte pin);
     void init() ;
-    void on() ;
+    void on(byte intensity) ;
     void off();
 };
 

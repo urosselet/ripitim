@@ -11,11 +11,11 @@ void Led::init()
     pinMode(pin, OUTPUT);
     off();
 }
-void Led::on()
+void Led::on(byte intensity)
 {
-    digitalWrite(pin, HIGH);
+    analogWrite(pin, intensity);
 }
 void Led::off()
 {
-    digitalWrite(pin, LOW);
+    Led::on(0);
 }
