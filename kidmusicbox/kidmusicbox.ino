@@ -7,7 +7,8 @@
 		Ulysse Rosselet, 2020, CC by-nc-sa
 */
 
-
+#include "IlluminatedButton.h"
+#include "RotarySwitch.h"
 
 #include <MozziGuts.h>
 #include <Oscil.h>                      // oscillator template
@@ -18,73 +19,6 @@
 #include <mozzi_rand.h>
 #include <mozzi_midi.h>
 #include <Adafruit_NeoPixel.h>
-
-
-class Led {
-  private:
-    byte pin;
-  public:
-    Led(byte pin) {
-      this->pin = pin;
-      init();
-    }
-    void init() {
-      pinMode(pin, OUTPUT);
-      off();
-    }
-    void on() {
-      digitalWrite(pin, HIGH);
-    }
-    void off() {
-      digitalWrite(pin, LOW);
-    }
-};
-
-class Button {
-  private:
-    byte pin;
-    byte state;
-    byte lastReading;
-    unsigned long lastDebounceTime = 0;
-    unsigned long debounceDelay = 20;
-  public:
-    Button(byte pin) {
-      this->pin = pin;
-      lastReading = LOW;
-      init();
-    }
-    void init() {
-      pinMode(pin, INPUT);
-      update();
-    }
-    void update() {
-      byte newReading = digitalRead(pin);
-
-      if (newReading != lastReading) {
-        lastDebounceTime = millis();
-      }
-      if (millis() - lastDebounceTime > debounceDelay) {
-        state = newReading;
-      }
-      lastReading = newReading;
-    }
-    byte getState() {
-      update();
-      return state;
-    }
-    bool isPressed() {
-      return (getState() == HIGH);
-    }
-};
-
-class RotarySwitch{
-  private:
-  byte pin;
-  byte numValue;
-  public:
-  RotarySwitch();
-};
-
 
 #define CONTROL_RATE 256 // Hz, powers of 2 are most reliable
 
@@ -107,9 +41,10 @@ boolean euclid16[16][16] = {
   {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
 };
 
-Led led1(3);
-Button button1(2);
-
+// Led led1(3);
+// Button button1(2);
+IlluminatedButton arcadeButton(2, 3);
+RotarySwitch rotarySwitch(0, 12);
 int scales[8][8] = {
   {0, 2, 4, 5, 7, 9, 11, 12}, // majeur
   {0, 2, 3, 5, 7, 9, 11, 12}, // mineur jazz
@@ -162,7 +97,6 @@ int selectedScale = 0;
 
 int gatePatternIndex = 6;
 
-const char ROTARY_SWITCH_INPUT_PIN = 0;
 const char WHEEL_INPUT_PIN = 1;
 
 #define NEOPIXELPIN 6
@@ -197,15 +131,12 @@ void setup()
 void updateControl()
 {
 
-  if (button1.isPressed()) {
-    led1.on();
-  }
-  else {
-    led1.off();
-  }
-
-  int rotarySwitchRawValue = mozziAnalogRead(ROTARY_SWITCH_INPUT_PIN);
-  int rotarySwitchPosition = map(rotarySwitchRawValue, 0, 1023, 0, 11);
+if(arcadeButton.isPressed()){
+  arcadeButton.ledOn();
+} else {
+  arcadeButton.ledOff();
+}
+  int rotarySwitchPosition = rotarySwitch.getPosition();
   steppingMode =  rotarySwitchPosition % 4;
   selectedScale = rotarySwitchPosition / 2;
   int wheelRawValue = mozziAnalogRead(WHEEL_INPUT_PIN);

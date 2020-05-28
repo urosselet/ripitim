@@ -1,0 +1,18 @@
+#ifndef ROTARYSWITCH_H
+#define ROTARYSWITCH_H
+#include <Arduino.h>
+
+class RotarySwitch {
+  private:
+    byte pin;
+    byte numberOfPositions;
+    int position;
+    int rawValue;
+  public:
+    RotarySwitch(byte pin, byte numberOfPositions );
+    void init();
+    void update();
+    byte getPosition();
+};
+
+#endif
