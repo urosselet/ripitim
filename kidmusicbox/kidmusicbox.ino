@@ -20,6 +20,72 @@
 #include <Adafruit_NeoPixel.h>
 
 
+class Led {
+  private:
+    byte pin;
+  public:
+    Led(byte pin) {
+      this->pin = pin;
+      init();
+    }
+    void init() {
+      pinMode(pin, OUTPUT);
+      off();
+    }
+    void on() {
+      digitalWrite(pin, HIGH);
+    }
+    void off() {
+      digitalWrite(pin, LOW);
+    }
+};
+
+class Button {
+  private:
+    byte pin;
+    byte state;
+    byte lastReading;
+    unsigned long lastDebounceTime = 0;
+    unsigned long debounceDelay = 20;
+  public:
+    Button(byte pin) {
+      this->pin = pin;
+      lastReading = LOW;
+      init();
+    }
+    void init() {
+      pinMode(pin, INPUT);
+      update();
+    }
+    void update() {
+      byte newReading = digitalRead(pin);
+
+      if (newReading != lastReading) {
+        lastDebounceTime = millis();
+      }
+      if (millis() - lastDebounceTime > debounceDelay) {
+        state = newReading;
+      }
+      lastReading = newReading;
+    }
+    byte getState() {
+      update();
+      return state;
+    }
+    bool isPressed() {
+      return (getState() == HIGH);
+    }
+};
+
+class RotarySwitch{
+  private:
+  byte pin;
+  byte numValue;
+  public:
+  RotarySwitch();
+};
+
+
 #define CONTROL_RATE 256 // Hz, powers of 2 are most reliable
 
 boolean euclid16[16][16] = {
@@ -40,6 +106,9 @@ boolean euclid16[16][16] = {
   {1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1},
   {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
 };
+
+Led led1(3);
+Button button1(2);
 
 int scales[8][8] = {
   {0, 2, 4, 5, 7, 9, 11, 12}, // majeur
@@ -127,6 +196,14 @@ void setup()
 
 void updateControl()
 {
+
+  if (button1.isPressed()) {
+    led1.on();
+  }
+  else {
+    led1.off();
+  }
+
   int rotarySwitchRawValue = mozziAnalogRead(ROTARY_SWITCH_INPUT_PIN);
   int rotarySwitchPosition = map(rotarySwitchRawValue, 0, 1023, 0, 11);
   steppingMode =  rotarySwitchPosition % 4;
@@ -134,27 +211,27 @@ void updateControl()
   int wheelRawValue = mozziAnalogRead(WHEEL_INPUT_PIN);
   int gatePatternIndex = wheelRawValue >> 6;
 
- uint32_t color;
-  switch(selectedScale){
+  uint32_t color;
+  switch (selectedScale) {
     case 0:
-    color = strip.Color(255,0,0);
-    break;    
+      color = strip.Color(255, 0, 0);
+      break;
     case 1:
-    color = strip.Color(0,255,0);
-    break;
+      color = strip.Color(0, 255, 0);
+      break;
     case 2:
-    color = strip.Color(0,0,255);
-    break;
+      color = strip.Color(0, 0, 255);
+      break;
     case 3:
-    color = strip.Color(255,0,255);
-    break;
+      color = strip.Color(255, 0, 255);
+      break;
     case 4:
-    color = strip.Color(255,255,0);
-    break;
+      color = strip.Color(255, 255, 0);
+      break;
     case 5:
-    color = strip.Color(0,255,255);
-    break;
-    
+      color = strip.Color(0, 255, 255);
+      break;
+
   }
 
 
@@ -183,7 +260,7 @@ void updateControl()
       //      Serial.print(note);
       //      Serial.print("\t");
       aSin.setFreq(mtof(float(note)));
- 
+
 
       strip.setPixelColor(noteIndex, color);
       strip.show();
