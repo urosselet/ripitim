@@ -6,6 +6,7 @@ class RotarySwitch {
   private:
     byte pin;
     byte numberOfPositions;
+    byte offset;
     int position;
     int rawValue;
   public:

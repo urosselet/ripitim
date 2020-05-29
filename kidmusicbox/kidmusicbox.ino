@@ -9,6 +9,8 @@
 
 #include "IlluminatedButton.h"
 #include "RotarySwitch.h"
+#include "MozziAnalogSensor.h"
+
 
 #include <MozziGuts.h>
 #include <Oscil.h>                      // oscillator template
@@ -23,48 +25,43 @@
 #define CONTROL_RATE 256 // Hz, powers of 2 are most reliable
 
 boolean euclid16[16][16] = {
-  {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-  {1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0},
-  {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0},
-  {1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0},
-  {1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0},
-  {1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0},
-  {1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0},
-  {1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0},
-  {1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0},
-  {1, 0, 1, 1, 0, 1, 1, 0, 1, 0, 1, 1, 0, 1, 1, 0},
-  {1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1},
-  {1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1},
-  {1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1},
-  {1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1},
-  {1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1},
-  {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
-};
+    {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+    {1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0},
+    {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0},
+    {1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0},
+    {1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0},
+    {1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0},
+    {1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0},
+    {1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0},
+    {1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0},
+    {1, 0, 1, 1, 0, 1, 1, 0, 1, 0, 1, 1, 0, 1, 1, 0},
+    {1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1},
+    {1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1},
+    {1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1},
+    {1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1},
+    {1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1},
+    {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}};
 
-// Led led1(3);
-// Button button1(2);
-IlluminatedButton arcadeButton(2, 3);
-RotarySwitch rotarySwitch(0, 12);
+
 int scales[8][8] = {
-  {0, 2, 4, 5, 7, 9, 11, 12}, // majeur
-  {0, 2, 3, 5, 7, 9, 11, 12}, // mineur jazz
-  {0, 1, 3, 5, 7, 8, 11, 12}, // phrygien
-  {0, 3, 3, 5, 7, 10, 10, 12}, // penta mineure
-  {0, 7, 12, 15, 17, 19, 22, 24}, // 2 octave penta min
-  {0, 2, 3, 5, 6, 8, 9, 11} // ton demi-ton
+    {0, 2, 4, 5, 7, 9, 11, 12},     // majeur
+    {0, 2, 3, 5, 7, 9, 11, 12},     // mineur jazz
+    {0, 1, 3, 5, 7, 8, 11, 12},     // phrygien
+    {0, 3, 3, 5, 7, 10, 10, 12},    // penta mineure
+    {0, 7, 12, 15, 17, 19, 22, 24}, // 2 octave penta min
+    {0, 2, 3, 5, 6, 8, 9, 11}       // ton demi-ton
 };
 
 int scalesModes[8][8] = {
-  {0, 2, 4, 5, 7, 9, 11, 12}, // ionien
-  {0, 2, 3, 5, 7, 9, 10, 12}, // dorien
-  {0, 1, 3, 5, 7, 8, 10, 12}, // phrygien
-  {0, 2, 4, 6, 7, 9, 11, 12}, // lydien
-  {0, 2, 4, 5, 7, 9, 10, 12}, // mixolydien
-  {0, 2, 3, 5, 7, 8, 10, 12}, // aeolien
-  {0, 1, 3, 5, 6, 8, 10, 12}, // locrien
-  {0, 2, 4, 5, 7, 9, 11, 12}  // ionien
+    {0, 2, 4, 5, 7, 9, 11, 12}, // ionien
+    {0, 2, 3, 5, 7, 9, 10, 12}, // dorien
+    {0, 1, 3, 5, 7, 8, 10, 12}, // phrygien
+    {0, 2, 4, 6, 7, 9, 11, 12}, // lydien
+    {0, 2, 4, 5, 7, 9, 10, 12}, // mixolydien
+    {0, 2, 3, 5, 7, 8, 10, 12}, // aeolien
+    {0, 1, 3, 5, 6, 8, 10, 12}, // locrien
+    {0, 2, 4, 5, 7, 9, 11, 12}  // ionien
 };
-
 
 // use: Oscil <table_size, update_rate> oscilName (wavetable), look in .h file of table #included above
 Oscil<SIN2048_NUM_CELLS, AUDIO_RATE> aSin(SIN2048_DATA);
@@ -97,11 +94,17 @@ int selectedScale = 0;
 
 int gatePatternIndex = 6;
 
-const char WHEEL_INPUT_PIN = 1;
-
+const byte ROTARYSWITCH_PIN = 0;
+const byte WHEEL_INPUT_PIN = 1;
+const byte BUTTON_1_SWITCH_PIN = 2;
+const byte BUTTON_1_LED_PIN = 3;
 #define NEOPIXELPIN 6
 
+MozziAnalogSensor wheel = MozziAnalogSensor(WHEEL_INPUT_PIN, 0, 1023, 0, 15);
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(8, NEOPIXELPIN, NEO_GRB + NEO_KHZ800);
+IlluminatedButton arcadeButton(BUTTON_1_SWITCH_PIN, BUTTON_1_LED_PIN);
+RotarySwitch rotarySwitch(ROTARYSWITCH_PIN, 12);
+
 
 void setup()
 {
@@ -127,43 +130,44 @@ void setup()
   }
 }
 
-
 void updateControl()
 {
 
-if(arcadeButton.isPressed()){
-  arcadeButton.ledOn(gain >> 1);
-} else {
-  arcadeButton.ledOff();
-}
+  if (arcadeButton.isPressed())
+  {
+    arcadeButton.ledOn(gain >> 3);
+  }
+  else
+  {
+    arcadeButton.ledOff();
+  }
   int rotarySwitchPosition = rotarySwitch.getPosition();
-  steppingMode =  rotarySwitchPosition % 4;
+  steppingMode = rotarySwitchPosition % 4;
   selectedScale = rotarySwitchPosition / 2;
-  int wheelRawValue = mozziAnalogRead(WHEEL_INPUT_PIN);
-  int gatePatternIndex = wheelRawValue >> 6;
+  int gatePatternIndex = wheel.read();
 
   uint32_t color;
-  switch (selectedScale) {
-    case 0:
-      color = strip.Color(255, 0, 0);
-      break;
-    case 1:
-      color = strip.Color(0, 255, 0);
-      break;
-    case 2:
-      color = strip.Color(0, 0, 255);
-      break;
-    case 3:
-      color = strip.Color(255, 0, 255);
-      break;
-    case 4:
-      color = strip.Color(255, 255, 0);
-      break;
-    case 5:
-      color = strip.Color(0, 255, 255);
-      break;
+  switch (selectedScale)
+  {
+  case 0:
+    color = strip.Color(255, 0, 0);
+    break;
+  case 1:
+    color = strip.Color(0, 255, 0);
+    break;
+  case 2:
+    color = strip.Color(0, 0, 255);
+    break;
+  case 3:
+    color = strip.Color(255, 0, 255);
+    break;
+  case 4:
+    color = strip.Color(255, 255, 0);
+    break;
+  case 5:
+    color = strip.Color(0, 255, 255);
+    break;
   }
-
 
   if (kDelay.ready())
   {
@@ -191,27 +195,26 @@ if(arcadeButton.isPressed()){
       //      Serial.print("\t");
       aSin.setFreq(mtof(float(note)));
 
-
       strip.setPixelColor(noteIndex, color);
       strip.show();
 
       switch (steppingMode)
       {
-        case 0:
-          pitchStep += 2;
-          break;
-        case 1:
-          pitchStep += 1 + globalStep % 16;
-          break;
-        case 2:
-          pitchStep += 1 + globalStep % 8;
-          break;
-        case 3:
-          pitchStep = seqPitchLength - (globalStep % seqPitchLength);
-          break;
-        default:
-          pitchStep += 1;
-          break;
+      case 0:
+        pitchStep += 2;
+        break;
+      case 1:
+        pitchStep += 1 + globalStep % 16;
+        break;
+      case 2:
+        pitchStep += 1 + globalStep % 8;
+        break;
+      case 3:
+        pitchStep = seqPitchLength - (globalStep % seqPitchLength);
+        break;
+      default:
+        pitchStep += 1;
+        break;
       }
     }
     else
