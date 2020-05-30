@@ -108,7 +108,7 @@ MozziAnalogSensor wheel = MozziAnalogSensor(WHEEL_INPUT_PIN, 0, 1023, 0, 15);
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(8, NEOPIXELPIN, NEO_GRB + NEO_KHZ800);
 IlluminatedButton arcadeButton(BUTTON_1_SWITCH_PIN, BUTTON_1_LED_PIN);
 RotarySwitch rotarySwitch(ROTARYSWITCH_PIN, 12);
-Wheel wheelEncoder(WHEEL_ENCODER_PIN1);
+Wheel wheelEncoder(WHEEL_ENCODER_PIN1, WHEEL_ENCODER_PIN2);
 
 void setup()
 {
@@ -180,7 +180,9 @@ void updateControl()
   if (kDelay.ready())
   {
 
-Serial.println(wheelEncoder.read());
+Serial.print(wheelEncoder.getDirection());
+Serial.print("\t");
+Serial.println(wheelEncoder.getSpeed());
 
     //    Serial.print(steppingMode);
     //    Serial.print("\t");
