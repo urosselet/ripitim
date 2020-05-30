@@ -10,7 +10,7 @@
 #include "IlluminatedButton.h"
 #include "RotarySwitch.h"
 #include "MozziAnalogSensor.h"
-
+#include "Wheel.h"
 
 #include <MozziGuts.h>
 #include <Oscil.h>                      // oscillator template
@@ -41,7 +41,6 @@ boolean euclid16[16][16] = {
     {1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1},
     {1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1},
     {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}};
-
 
 int scales[8][8] = {
     {0, 2, 4, 5, 7, 9, 11, 12},     // majeur
@@ -98,13 +97,18 @@ const byte ROTARYSWITCH_PIN = 0;
 const byte WHEEL_INPUT_PIN = 1;
 const byte BUTTON_1_SWITCH_PIN = 2;
 const byte BUTTON_1_LED_PIN = 3;
+const byte WHEEL_ENCODER_PIN1 = 7;
+const byte WHEEL_ENCODER_PIN2 = 8;
+
+
+
 #define NEOPIXELPIN 6
 
 MozziAnalogSensor wheel = MozziAnalogSensor(WHEEL_INPUT_PIN, 0, 1023, 0, 15);
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(8, NEOPIXELPIN, NEO_GRB + NEO_KHZ800);
 IlluminatedButton arcadeButton(BUTTON_1_SWITCH_PIN, BUTTON_1_LED_PIN);
 RotarySwitch rotarySwitch(ROTARYSWITCH_PIN, 12);
-
+Wheel wheelEncoder(WHEEL_ENCODER_PIN1);
 
 void setup()
 {
@@ -132,6 +136,10 @@ void setup()
 
 void updateControl()
 {
+
+
+
+
 
   if (arcadeButton.isPressed())
   {
@@ -171,6 +179,9 @@ void updateControl()
 
   if (kDelay.ready())
   {
+
+Serial.println(wheelEncoder.read());
+
     //    Serial.print(steppingMode);
     //    Serial.print("\t");
 
@@ -246,6 +257,7 @@ void updateControl()
 
 int updateAudio()
 {
+  wheelEncoder.update();
   int noiseChannel = noiseGain * aNoise.next() >> 4;
   int sineChannel = gain * aSin.next() >> 1;
   return (noiseChannel + sineChannel) >> 8;
