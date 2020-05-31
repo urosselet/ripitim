@@ -95,27 +95,24 @@ int gatePatternIndex = 6;
 
 const byte ROTARYSWITCH_PIN = 0;
 const byte WHEEL_INPUT_PIN = 1;
-const byte BUTTON_1_SWITCH_PIN = 2;
-const byte BUTTON_1_LED_PIN = 3;
+const byte BUTTON_1_SWITCH_PIN = 3;
+const byte BUTTON_1_LED_PIN = 5;
+const byte BUTTON_2_SWITCH_PIN = 4;
+const byte BUTTON_2_LED_PIN = 6;
+const byte REED_SWITCH_1_PIN = 10;
+const byte REED_SWITCH_2_PIN = 11;
 const byte WHEEL_ENCODER_PIN1 = 7;
 const byte WHEEL_ENCODER_PIN2 = 8;
 
-
-
-#define NEOPIXELPIN 6
-
-MozziAnalogSensor wheel = MozziAnalogSensor(WHEEL_INPUT_PIN, 0, 1023, 0, 15);
-Adafruit_NeoPixel strip = Adafruit_NeoPixel(8, NEOPIXELPIN, NEO_GRB + NEO_KHZ800);
-IlluminatedButton arcadeButton(BUTTON_1_SWITCH_PIN, BUTTON_1_LED_PIN);
+IlluminatedButton buttonA(BUTTON_1_SWITCH_PIN, BUTTON_1_LED_PIN, false);
+IlluminatedButton buttonB(BUTTON_2_SWITCH_PIN, BUTTON_2_LED_PIN, false);
 RotarySwitch rotarySwitch(ROTARYSWITCH_PIN, 12);
 Wheel wheelEncoder(WHEEL_ENCODER_PIN1, WHEEL_ENCODER_PIN2);
+Button reedSwitchA(REED_SWITCH_1_PIN, false);
+Button reedSwitchB(REED_SWITCH_2_PIN, false);
 
 void setup()
 {
-  strip.begin();
-  strip.setBrightness(16);
-  strip.show(); // Initialize all pixels to 'off'
-
   // use float to set freq because it will be small and fractional
   aNoise.setFreq((float)AUDIO_RATE / BROWNNOISE8192_SAMPLERATE);
   aSin.setFreq(440); // set the frequency
@@ -136,81 +133,44 @@ void setup()
 
 void updateControl()
 {
-
-
-
-
-
-  if (arcadeButton.isPressed())
+  if (reedSwitchA.isPressed())
   {
-    arcadeButton.ledOn(gain >> 3);
+    buttonA.ledOn(gain); // >> 3
   }
   else
   {
-    arcadeButton.ledOff();
+    buttonA.ledOff();
   }
+
+    if (reedSwitchB.isPressed())
+  {
+    buttonB.ledOn(gain >> 3);
+  }
+  else
+  {
+    buttonA.ledOff();
+  }
+
   int rotarySwitchPosition = rotarySwitch.getPosition();
   steppingMode = rotarySwitchPosition % 4;
   selectedScale = rotarySwitchPosition / 2;
-  int gatePatternIndex = wheel.read();
-
-  uint32_t color;
-  switch (selectedScale)
-  {
-  case 0:
-    color = strip.Color(255, 0, 0);
-    break;
-  case 1:
-    color = strip.Color(0, 255, 0);
-    break;
-  case 2:
-    color = strip.Color(0, 0, 255);
-    break;
-  case 3:
-    color = strip.Color(255, 0, 255);
-    break;
-  case 4:
-    color = strip.Color(255, 255, 0);
-    break;
-  case 5:
-    color = strip.Color(0, 255, 255);
-    break;
-  }
 
   if (kDelay.ready())
   {
-
-Serial.print(wheelEncoder.getDirection());
-Serial.print("\t");
-Serial.println(wheelEncoder.getSpeed());
-
-    //    Serial.print(steppingMode);
-    //    Serial.print("\t");
+    int wheelSpeed = map(wheelEncoder.getSpeed(), 0, 45, 0, 15);
 
     if (globalStep % 64 == 0)
     {
       pitchStep = 0;
       gateStep = 0;
     }
-    boolean gateON = euclid16[gatePatternIndex][gateStep % 16] == 1;
-    //    Serial.print(gateON);
-    //    Serial.print("\t");
-
+    boolean gateON = euclid16[wheelSpeed][gateStep % 16] == 1;
     if (gateON)
     { // action if gate ON
-      strip.clear();
-      kEnvelope.start(5, 600);
+      kEnvelope.start(5, 900);
       int noteIndex = pitchStep % seqPitchLength;
       int note = baseNote + scales[selectedScale][noteIndex];
-      //      Serial.print(noteIndex);
-      //      Serial.print("\t");
-      //      Serial.print(note);
-      //      Serial.print("\t");
       aSin.setFreq(mtof(float(note)));
-
-      strip.setPixelColor(noteIndex, color);
-      strip.show();
-
       switch (steppingMode)
       {
       case 0:
@@ -250,7 +210,6 @@ Serial.println(wheelEncoder.getSpeed());
       stepMillis = evenEigth;
     }
     kDelay.start(stepMillis);
-    //    Serial.println();
   }
   aNoise.setPhase(rand((unsigned int)BROWNNOISE8192_NUM_CELLS)); // jump around in audio noise table to disrupt obvious looping
   gain = (int)kEnvelope.next();
@@ -262,7 +221,8 @@ int updateAudio()
   wheelEncoder.update();
   int noiseChannel = noiseGain * aNoise.next() >> 4;
   int sineChannel = gain * aSin.next() >> 1;
-  return (noiseChannel + sineChannel) >> 8;
+  return (noiseChannel + sineChannel) >> 7;
+  // return 0;
 }
 
 void loop()

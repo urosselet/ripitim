@@ -1,15 +1,17 @@
 #include "Button.h"
 #include <Arduino.h>
 
-Button::Button(byte pin)
+Button::Button(byte pin, boolean pushedState)
 {
     this->pin = pin;
     lastReading = LOW;
+    this->pushedState = pushedState;
+
     init();
 }
 void Button::init()
 {
-    pinMode(pin, INPUT);
+    pinMode(pin, INPUT_PULLUP);
     update();
 }
 void Button::update()
@@ -33,5 +35,5 @@ byte Button::getState()
 }
 bool Button::isPressed()
 {
-    return (getState() == HIGH);
+    return (getState() == pushedState);
 }

@@ -2,18 +2,20 @@
 #define ROTARYSWITCH_H
 #include <Arduino.h>
 
-class RotarySwitch {
-  private:
-    byte pin;
-    byte numberOfPositions;
-    byte offset;
-    int position;
-    int rawValue;
-  public:
-    RotarySwitch(byte pin, byte numberOfPositions );
-    void init();
-    void update();
-    byte getPosition();
+class RotarySwitch
+{
+private:
+  byte pin;
+  byte numberOfPositions;
+  byte offset;
+  int position;
+  int rawValue;
+
+public:
+  RotarySwitch(byte pin, byte numberOfPositions);
+  void init();
+  void update();
+  byte getPosition();
 };
 
 #endif

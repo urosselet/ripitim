@@ -13,7 +13,7 @@ private:
   Led led;
 
 public:
-  IlluminatedButton(byte buttonPin, byte ledPin) : button(buttonPin), led(ledPin){};
+  IlluminatedButton(byte buttonPin, byte ledPin, boolean pushedState) : button(buttonPin, pushedState), led(ledPin){};
   bool isPressed();
   void ledOn(byte intensity);
   void ledOff();

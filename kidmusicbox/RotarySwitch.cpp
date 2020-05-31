@@ -1,7 +1,7 @@
 #include "RotarySwitch.h"
 #include <Arduino.h>
 
-RotarySwitch::    RotarySwitch(byte pin, byte numberOfPositions )
+RotarySwitch::RotarySwitch(byte pin, byte numberOfPositions)
 {
     this->pin = pin;
     this->numberOfPositions = numberOfPositions;
@@ -17,7 +17,7 @@ void RotarySwitch::init()
 void RotarySwitch::update()
 {
     rawValue = analogRead(pin);
-    position =  map(rawValue+offset, 0, 1023, 0, numberOfPositions-1);
+    position = map(rawValue + offset, 0, 1023, 0, numberOfPositions - 1);
 }
 byte RotarySwitch::getPosition()
 {
