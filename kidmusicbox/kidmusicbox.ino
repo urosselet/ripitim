@@ -78,15 +78,14 @@ int gateStep = 0;
 int gateStepIncrement = 1;
 int pitchStep = 0;
 int pitchStepIncrement = 1;
-int globalStep = 0;
-int globalStepIncrement = 1;
-int tempoBPM = 160;
+unsigned int globalStep = 0;
+int tempoBPM = 150;
 float grooveRatio = 0.56;
 float quarterNoteMs;
 int evenEigth;
 int oddEigth;
 
-int baseNote = 60;
+int baseNote = 54;
 
 int steppingMode = 0;
 int selectedScale = 0;
@@ -99,8 +98,8 @@ const byte BUTTON_1_SWITCH_PIN = 3;
 const byte BUTTON_1_LED_PIN = 5;
 const byte BUTTON_2_SWITCH_PIN = 4;
 const byte BUTTON_2_LED_PIN = 6;
-const byte REED_SWITCH_1_PIN = 10;
-const byte REED_SWITCH_2_PIN = 11;
+const byte REED_SWITCH_1_PIN = 11;
+const byte REED_SWITCH_2_PIN = 10;
 const byte WHEEL_ENCODER_PIN1 = 7;
 const byte WHEEL_ENCODER_PIN2 = 8;
 
@@ -133,23 +132,9 @@ void setup()
 
 void updateControl()
 {
-  if (reedSwitchA.isPressed())
-  {
-    buttonA.ledOn(gain); // >> 3
-  }
-  else
-  {
-    buttonA.ledOff();
-  }
 
-    if (reedSwitchB.isPressed())
-  {
-    buttonB.ledOn(gain >> 3);
-  }
-  else
-  {
-    buttonA.ledOff();
-  }
+    buttonA.ledOn(gain); // >> 3
+    buttonB.ledOn(gain);
 
   int rotarySwitchPosition = rotarySwitch.getPosition();
   steppingMode = rotarySwitchPosition % 4;
@@ -198,7 +183,7 @@ void updateControl()
       }
     }
     gateStep += gateStepIncrement;
-    globalStep += globalStepIncrement;
+    globalStep++;
     nEnvelope.start(5, 10);
     int stepMillis;
     if (globalStep % 2 == 1)
@@ -209,6 +194,7 @@ void updateControl()
     {
       stepMillis = evenEigth;
     }
+    Serial.println(stepMillis);
     kDelay.start(stepMillis);
   }
   aNoise.setPhase(rand((unsigned int)BROWNNOISE8192_NUM_CELLS)); // jump around in audio noise table to disrupt obvious looping
@@ -219,7 +205,7 @@ void updateControl()
 int updateAudio()
 {
   wheelEncoder.update();
-  int noiseChannel = noiseGain * aNoise.next() >> 4;
+  int noiseChannel = noiseGain * aNoise.next() >> 5;
   int sineChannel = gain * aSin.next() >> 1;
   return (noiseChannel + sineChannel) >> 7;
   // return 0;
