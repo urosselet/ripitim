@@ -17,10 +17,10 @@
 #include <WaveShaper.h>
 #include <tables/brownnoise8192_int8.h> // recorded audio wavetable
 #include <tables/sin2048_int8.h>        // sine table for oscillator
-#include <tables/triangle_dist_cubed_2048_int8.h>        // triangle table for oscillator
-#include <tables/sin256_int8.h>        // sine table for wheel lfo
-#include <tables/waveshape_chebyshev_6th_256_int8.h>
-#include <tables/waveshape_chebyshev_3rd_256_int8.h>
+#include <tables/saw2048_int8.h>
+#include <tables/square_no_alias512_int8.h>
+#include <tables/sin256_int8.h> // sine table for wheel lfo
+#include <LowPassFilter.h>
 
 #include <tables/waveshape_compress_512_to_488_int16.h>
 
@@ -71,15 +71,18 @@ int scalesModes[8][8] = {
 };
 
 // use: Oscil <table_size, update_rate> oscilName (wavetable), look in .h file of table #included above
-Oscil<SIN2048_NUM_CELLS, AUDIO_RATE> aSin(SIN2048_DATA);
-// Oscil<TRIANGLE_DIST_CUBED_2048_NUM_CELLS, AUDIO_RATE> aSin(TRIANGLE_DIST_CUBED_2048_DATA);
+// Oscil<SIN2048_NUM_CELLS, AUDIO_RATE> aVCO(SIN2048_DATA);
+Oscil<SAW2048_NUM_CELLS, AUDIO_RATE> aVCO(SAW2048_DATA);
+Oscil<SQUARE_NO_ALIAS512_NUM_CELLS, AUDIO_RATE> aVCOsub(SQUARE_NO_ALIAS512_DATA);
 Oscil<BROWNNOISE8192_NUM_CELLS, AUDIO_RATE> aNoise(BROWNNOISE8192_DATA);
-Oscil<SIN2048_NUM_CELLS, AUDIO_RATE> aGain1(SIN2048_DATA); // to fade sine wave in and out before waveshaping
 Oscil<SIN256_NUM_CELLS, AUDIO_RATE> aGain2(SIN256_DATA); // lfo wheel
+Oscil<SIN2048_NUM_CELLS, CONTROL_RATE> kFilterMod(SIN2048_DATA);
 
-WaveShaper<char> aCheby6th(CHEBYSHEV_6TH_256_DATA);            // 8th harmonic
-WaveShaper<char> aCheby3rd(CHEBYSHEV_3RD_256_DATA);            // 5th harmonic
+
+
 WaveShaper<int> aCompress(WAVESHAPE_COMPRESS_512_TO_488_DATA); // to compress instead of dividing by 2 after adding signals
+
+LowPassFilter lpf;
 
 EventDelay kDelay;           // for triggering envelope start
 Ead kEnvelope(CONTROL_RATE); // resolution will be AUDIO_RATE
@@ -129,9 +132,9 @@ void setup()
 {
   // use float to set freq because it will be small and fractional
   aNoise.setFreq((float)AUDIO_RATE / BROWNNOISE8192_SAMPLERATE);
-  aSin.setFreq(440);   // set the frequency
-  randSeed();          // fresh random, MUST be called before startMozzi - wierd bug
-  aGain1.setFreq(110); // use a float for low frequencies, in setup it doesn't need to be fast
+  aVCO.setFreq(440);    // set the frequency
+  aVCOsub.setFreq(220); // set the frequency
+  randSeed();           // fresh random, MUST be called before startMozzi - wierd bug
   aGain2.setFreq(.4f);
   startMozzi(CONTROL_RATE);
   quarterNoteMs = 60000 / tempoBPM;
@@ -139,6 +142,8 @@ void setup()
   oddEigth = quarterNoteMs * (1.0 - grooveRatio);
   kDelay.start(quarterNoteMs);
   steppingMode = 2;
+  lpf.setResonance(240);
+    kFilterMod.setFreq(1.3f);
 
   Serial.begin(9600);
   while (!Serial)
@@ -159,8 +164,9 @@ void updateControl()
 
   if (kDelay.ready())
   {
-    int wheelSpeed = map(wheelEncoder.getSpeed(), 0, 45, 0, 15);
-    gatePatternIndex = 12;
+    int wheelSpeed = wheelEncoder.getSpeed();
+    kFilterMod.setFreq(0.1f + (float)wheelSpeed/5.f);
+    gatePatternIndex = 8;
 
     if (globalStep % 64 == 0)
     {
@@ -173,8 +179,8 @@ void updateControl()
       kEnvelope.start(5, 800);
       int noteIndex = pitchStep % seqPitchLength;
       int note = baseNote + scales[selectedScale][noteIndex];
-      aSin.setFreq(mtof(float(note)));
-      aGain1.setFreq(mtof(float(note-24)));
+      aVCO.setFreq(mtof(float(note)));
+      aVCOsub.setFreq(mtof(float(note - 24)));
       switch (steppingMode)
       {
       case 0:
@@ -204,7 +210,7 @@ void updateControl()
     { // action if gate OFF
       if (globalStep % 7 == 0)
       {
-        //        pitchStep --;
+               pitchStep --;
       }
     }
     gateStep += gateStepIncrement;
@@ -219,12 +225,11 @@ void updateControl()
     {
       stepMillis = evenEigth;
     }
-    Serial.println(stepMillis);
     kDelay.start(stepMillis);
   }
   aNoise.setPhase(rand((unsigned int)BROWNNOISE8192_NUM_CELLS)); // jump around in audio noise table to disrupt obvious looping
-      // Serial.println(gain);
-
+  byte cutoff_freq = map(kFilterMod.next(), -127, 127, 10, 255);
+  lpf.setCutoffFreq(cutoff_freq);  
   noiseGain = (int)nEnvelope.next();
   gain = (int)kEnvelope.next();
 }
@@ -233,22 +238,15 @@ int updateAudio()
 {
   wheelEncoder.update();
 
-  int noiseChannel = noiseGain * aNoise.next() >> 5;
-  char asig0 = aSin.next(); // sine wave source
-  // offset the signals by 128 to fit in the 0-255 range for the waveshaping table lookups
-  byte asig1 = (byte)128 + ((asig0 * ((byte)128 + aGain1.next())) >> 8);
-  // lfo controlled by wheel
-  uint16_t wheelTicks = wheelEncoder.getTicks();
-  // Serial.println(wheelTicks);
-  byte asig2 = (byte)128 + ((asig0 * ((byte)128 + aGain2.atIndex(wheelTicks))) >> 8);
-  // get the waveshaped signals
-  char awaveshaped1 = aCheby3rd.next(asig1);
-  char awaveshaped2 = aCheby6th.next(asig2);
+  int noiseChannel = (noiseGain * aNoise.next()) >> 6;
+  char asig0 = aVCO.next();
+  char asig1 = aVCOsub.next();
   // use a waveshaping table to squeeze 2 summed 8 bit signals into the range -244 to 243
-  int awaveshaped3 = aCompress.next(256u + awaveshaped1 + awaveshaped2) >> 1;
-  int output = (gain * awaveshaped3) >> 8;
+  int awaveshaped3 = aCompress.next(256u + asig0 + asig1) >> 2;
+  int filtered = lpf.next(awaveshaped3);
+  int filtered2 = lpf.next(filtered);
+  int output = (gain * filtered2) >> 7;
   return output;
-  //return (noiseChannel + sineChannel) >> 7;
 }
 
 void loop()
