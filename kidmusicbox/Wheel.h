@@ -18,6 +18,7 @@ public:
   void init();
   void update();
   uint16_t getSpeed();
+  uint16_t  getTicks();
   boolean getDirection();
 };
 

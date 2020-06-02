@@ -13,10 +13,18 @@
 #include "Wheel.h"
 
 #include <MozziGuts.h>
-#include <Oscil.h>                      // oscillator template
+#include <Oscil.h> // oscillator template
+#include <WaveShaper.h>
 #include <tables/brownnoise8192_int8.h> // recorded audio wavetable
 #include <tables/sin2048_int8.h>        // sine table for oscillator
-#include <Ead.h>                        // exponential attack decay
+#include <tables/triangle_dist_cubed_2048_int8.h>        // triangle table for oscillator
+#include <tables/sin256_int8.h>        // sine table for wheel lfo
+#include <tables/waveshape_chebyshev_6th_256_int8.h>
+#include <tables/waveshape_chebyshev_3rd_256_int8.h>
+
+#include <tables/waveshape_compress_512_to_488_int16.h>
+
+#include <Ead.h> // exponential attack decay
 #include <EventDelay.h>
 #include <mozzi_rand.h>
 #include <mozzi_midi.h>
@@ -64,9 +72,17 @@ int scalesModes[8][8] = {
 
 // use: Oscil <table_size, update_rate> oscilName (wavetable), look in .h file of table #included above
 Oscil<SIN2048_NUM_CELLS, AUDIO_RATE> aSin(SIN2048_DATA);
+// Oscil<TRIANGLE_DIST_CUBED_2048_NUM_CELLS, AUDIO_RATE> aSin(TRIANGLE_DIST_CUBED_2048_DATA);
 Oscil<BROWNNOISE8192_NUM_CELLS, AUDIO_RATE> aNoise(BROWNNOISE8192_DATA);
+Oscil<SIN2048_NUM_CELLS, AUDIO_RATE> aGain1(SIN2048_DATA); // to fade sine wave in and out before waveshaping
+Oscil<SIN256_NUM_CELLS, AUDIO_RATE> aGain2(SIN256_DATA); // lfo wheel
+
+WaveShaper<char> aCheby6th(CHEBYSHEV_6TH_256_DATA);            // 8th harmonic
+WaveShaper<char> aCheby3rd(CHEBYSHEV_3RD_256_DATA);            // 5th harmonic
+WaveShaper<int> aCompress(WAVESHAPE_COMPRESS_512_TO_488_DATA); // to compress instead of dividing by 2 after adding signals
+
 EventDelay kDelay;           // for triggering envelope start
-Ead kEnvelope(CONTROL_RATE); // resolution will be CONTROL_RATE
+Ead kEnvelope(CONTROL_RATE); // resolution will be AUDIO_RATE
 Ead nEnvelope(CONTROL_RATE); // resolution will be CONTROL_RATE
 
 int gain;
@@ -79,8 +95,8 @@ int gateStepIncrement = 1;
 int pitchStep = 0;
 int pitchStepIncrement = 1;
 unsigned int globalStep = 0;
-int tempoBPM = 150;
-float grooveRatio = 0.56;
+int tempoBPM = 180;
+float grooveRatio = 0.54;
 float quarterNoteMs;
 int evenEigth;
 int oddEigth;
@@ -90,10 +106,9 @@ int baseNote = 54;
 int steppingMode = 0;
 int selectedScale = 0;
 
-int gatePatternIndex = 6;
+int gatePatternIndex = 9;
 
 const byte ROTARYSWITCH_PIN = 0;
-const byte WHEEL_INPUT_PIN = 1;
 const byte BUTTON_1_SWITCH_PIN = 3;
 const byte BUTTON_1_LED_PIN = 5;
 const byte BUTTON_2_SWITCH_PIN = 4;
@@ -114,8 +129,10 @@ void setup()
 {
   // use float to set freq because it will be small and fractional
   aNoise.setFreq((float)AUDIO_RATE / BROWNNOISE8192_SAMPLERATE);
-  aSin.setFreq(440); // set the frequency
-  randSeed();        // fresh random, MUST be called before startMozzi - wierd bug
+  aSin.setFreq(440);   // set the frequency
+  randSeed();          // fresh random, MUST be called before startMozzi - wierd bug
+  aGain1.setFreq(110); // use a float for low frequencies, in setup it doesn't need to be fast
+  aGain2.setFreq(.4f);
   startMozzi(CONTROL_RATE);
   quarterNoteMs = 60000 / tempoBPM;
   evenEigth = quarterNoteMs * grooveRatio;
@@ -133,8 +150,8 @@ void setup()
 void updateControl()
 {
 
-    buttonA.ledOn(gain); // >> 3
-    buttonB.ledOn(gain);
+  buttonA.ledOn(gain); // >> 3
+  buttonB.ledOn(gain);
 
   int rotarySwitchPosition = rotarySwitch.getPosition();
   steppingMode = rotarySwitchPosition % 4;
@@ -143,19 +160,21 @@ void updateControl()
   if (kDelay.ready())
   {
     int wheelSpeed = map(wheelEncoder.getSpeed(), 0, 45, 0, 15);
+    gatePatternIndex = 12;
 
     if (globalStep % 64 == 0)
     {
       pitchStep = 0;
       gateStep = 0;
     }
-    boolean gateON = euclid16[wheelSpeed][gateStep % 16] == 1;
+    boolean gateON = euclid16[gatePatternIndex][gateStep % 16] == 1;
     if (gateON)
     { // action if gate ON
-      kEnvelope.start(5, 900);
+      kEnvelope.start(5, 800);
       int noteIndex = pitchStep % seqPitchLength;
       int note = baseNote + scales[selectedScale][noteIndex];
       aSin.setFreq(mtof(float(note)));
+      aGain1.setFreq(mtof(float(note-24)));
       switch (steppingMode)
       {
       case 0:
@@ -169,6 +188,12 @@ void updateControl()
         break;
       case 3:
         pitchStep = seqPitchLength - (globalStep % seqPitchLength);
+        break;
+      case 4:
+        if (globalStep % 3 == 0 || globalStep % 4 == 0)
+        {
+          pitchStep++;
+        }
         break;
       default:
         pitchStep += 1;
@@ -198,17 +223,32 @@ void updateControl()
     kDelay.start(stepMillis);
   }
   aNoise.setPhase(rand((unsigned int)BROWNNOISE8192_NUM_CELLS)); // jump around in audio noise table to disrupt obvious looping
-  gain = (int)kEnvelope.next();
+      // Serial.println(gain);
+
   noiseGain = (int)nEnvelope.next();
+  gain = (int)kEnvelope.next();
 }
 
 int updateAudio()
 {
   wheelEncoder.update();
+
   int noiseChannel = noiseGain * aNoise.next() >> 5;
-  int sineChannel = gain * aSin.next() >> 1;
-  return (noiseChannel + sineChannel) >> 7;
-  // return 0;
+  char asig0 = aSin.next(); // sine wave source
+  // offset the signals by 128 to fit in the 0-255 range for the waveshaping table lookups
+  byte asig1 = (byte)128 + ((asig0 * ((byte)128 + aGain1.next())) >> 8);
+  // lfo controlled by wheel
+  uint16_t wheelTicks = wheelEncoder.getTicks();
+  // Serial.println(wheelTicks);
+  byte asig2 = (byte)128 + ((asig0 * ((byte)128 + aGain2.atIndex(wheelTicks))) >> 8);
+  // get the waveshaped signals
+  char awaveshaped1 = aCheby3rd.next(asig1);
+  char awaveshaped2 = aCheby6th.next(asig2);
+  // use a waveshaping table to squeeze 2 summed 8 bit signals into the range -244 to 243
+  int awaveshaped3 = aCompress.next(256u + awaveshaped1 + awaveshaped2) >> 1;
+  int output = (gain * awaveshaped3) >> 8;
+  return output;
+  //return (noiseChannel + sineChannel) >> 7;
 }
 
 void loop()

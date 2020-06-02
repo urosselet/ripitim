@@ -1,6 +1,7 @@
 #ifndef ROTARYSWITCH_H
 #define ROTARYSWITCH_H
 #include <Arduino.h>
+#include <MozziGuts.h>
 
 class RotarySwitch
 {

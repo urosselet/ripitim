@@ -16,7 +16,7 @@ void RotarySwitch::init()
 }
 void RotarySwitch::update()
 {
-    rawValue = analogRead(pin);
+    rawValue = mozziAnalogRead(pin);
     position = map(rawValue + offset, 0, 1023, 0, numberOfPositions - 1);
 }
 byte RotarySwitch::getPosition()

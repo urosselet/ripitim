@@ -41,3 +41,7 @@ boolean Wheel::getDirection()
 {
     return direction;
 }
+
+uint16_t Wheel::getTicks(){
+    return wheelTicks;
+}
