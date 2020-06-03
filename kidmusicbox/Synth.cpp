@@ -6,7 +6,7 @@
 void Synth::init()
 {
     lpf.setResonance(240);
-    kFilterMod.setFreq(1.3f);
+    filterLFO.setFreq(1.3f);
     vco2semitones = -24;
 }
 
@@ -24,14 +24,14 @@ int Synth::audioHook()
 
 void Synth::controlHook()
 {
-    byte cutoff_freq = map(kFilterMod.next(), -127, 127, 10, 255);
+    byte cutoff_freq = map(filterLFO.next(), -127, 127, 10, 255);
     lpf.setCutoffFreq(cutoff_freq);
     gain = (int)kEnvelope.next();
 }
 
 void Synth::setModulationFreq(float lfoFreq)
 {
-    kFilterMod.setFreq(0.1f + lfoFreq);
+    filterLFO.setFreq(0.1f + lfoFreq);
 }
 
 void Synth::playNote(int note, int attack, int decay)

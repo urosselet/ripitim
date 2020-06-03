@@ -15,7 +15,7 @@ class Synth
 private:
   Oscil<SAW2048_NUM_CELLS, AUDIO_RATE> vcoSaw;
   Oscil<SQUARE_NO_ALIAS512_NUM_CELLS, AUDIO_RATE> vcoSquare;
-  Oscil<SIN2048_NUM_CELLS, CONTROL_RATE> kFilterMod;
+  Oscil<SIN2048_NUM_CELLS, CONTROL_RATE> filterLFO;
   LowPassFilter lpf;
   Ead kEnvelope;
   WaveShaper<int> aCompress;
@@ -25,7 +25,7 @@ private:
 public:
   Synth() : vcoSaw(SAW2048_DATA),
             vcoSquare(SQUARE_NO_ALIAS512_DATA),
-            kFilterMod(SIN2048_DATA),
+            filterLFO(SIN2048_DATA),
             kEnvelope(CONTROL_RATE),
             aCompress(WAVESHAPE_COMPRESS_512_TO_488_DATA)
   {
