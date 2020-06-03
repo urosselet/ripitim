@@ -12,35 +12,18 @@
 #include "MozziAnalogSensor.h"
 #include "Wheel.h"
 #include "StepSequencer.h"
-// #include "Synth.h"
+#include "Synth.h"
 
 #include <MozziGuts.h>
-#include <Oscil.h> // oscillator template
-#include <WaveShaper.h>
-#include <tables/saw512_int8.h>
-#include <tables/square_no_alias512_int8.h>
-#include <tables/sin256_int8.h> // sine table for wheel lfo
-#include <LowPassFilter.h>
-
-#include <tables/waveshape_compress_512_to_488_int16.h>
 
 #include <Ead.h> 
 #include <EventDelay.h>
 #include <mozzi_rand.h>
 #include <mozzi_midi.h>
-#include <Adafruit_NeoPixel.h>
 
 #define CONTROL_RATE 256 // Hz, powers of 2 are most reliable
 
-// use: Oscil <table_size, update_rate> oscilName (wavetable), look in .h file of table #included above
-Oscil<SAW512_NUM_CELLS, AUDIO_RATE> vcoSaw(SAW512_DATA);
-Oscil<SQUARE_NO_ALIAS512_NUM_CELLS, AUDIO_RATE> vcoSquare(SQUARE_NO_ALIAS512_DATA);
-Oscil<SIN256_NUM_CELLS, CONTROL_RATE> filterLFO(SIN256_DATA);
-Ead vcaEnvelope(CONTROL_RATE);
-WaveShaper<int> aCompress(WAVESHAPE_COMPRESS_512_TO_488_DATA);
-LowPassFilter lpf;
-int vcaLevel;
-int vco2semitones;
+Synth synth;
 
 EventDelay stepDelay;   // for triggering steps
 
@@ -71,11 +54,7 @@ StepSequencer stepSequencer(64);
 
 void setup()
 {
-
   randSeed(); // fresh random, MUST be called before startMozzi - wierd bug
-  lpf.setResonance(240);
-  filterLFO.setFreq(1.3f);
-  vco2semitones = -24;
   quarterNoteMs = 60000 / tempoBPM;
   evenEigth = quarterNoteMs * grooveRatio;
   oddEigth = quarterNoteMs * (1.0 - grooveRatio);
@@ -106,14 +85,12 @@ void updateControl()
   {
     int wheelSpeed = wheelEncoder.getSpeed();
     float lfoFreq = 0.1f + (float)wheelSpeed / 5.f;
-    filterLFO.setFreq(0.1f + lfoFreq);
+    synth.setModulationFreq(lfoFreq);
     stepSequencer.selectGatePattern(8);
     int note = stepSequencer.step(globalStep);
     if (note > 0)
     {
-      vcoSaw.setFreq(mtof(note));
-      vcoSquare.setFreq(mtof(note + vco2semitones));
-      vcaEnvelope.start(5, 800);
+      synth.playNote(note, 5, 800);
     }
 
     globalStep++;
@@ -128,21 +105,13 @@ void updateControl()
     }
     stepDelay.start(stepMillis);
   }
-  byte cutoff_freq = map(filterLFO.next(), -127, 127, 10, 255);
-  lpf.setCutoffFreq(cutoff_freq);
-  vcaLevel = (int)vcaEnvelope.next();
+  synth.controlHook();
 }
 
 int updateAudio()
 {
   wheelEncoder.update();
-  char asig0 = vcoSaw.next();
-  char asig1 = vcoSquare.next();
-  // use a waveshaping table to squeeze 2 summed 8 bit signals into the range -244 to 243
-  int awaveshaped3 = aCompress.next(256u + asig0 + asig1) >> 2;
-  int filtered = lpf.next(awaveshaped3);
-  int filtered2 = lpf.next(filtered);
-  int output = (vcaLevel * filtered2) >> 7;
+  int output = synth.audioHook();
   return output;
 }
 

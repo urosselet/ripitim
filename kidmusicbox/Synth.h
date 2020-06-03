@@ -1,6 +1,8 @@
 #ifndef SYNTH_H
 #define SYNTH_H
 #include <Arduino.h>
+#include <MozziGuts.h>
+#include <mozzi_midi.h>
 #include <tables/saw2048_int8.h>
 #include <tables/square_no_alias512_int8.h>
 #include <tables/sin2048_int8.h>

@@ -1,7 +1,5 @@
 #include "Synth.h"
 #include <Arduino.h>
-#include <MozziGuts.h>
-#include <mozzi_midi.h>
 
 void Synth::init()
 {
