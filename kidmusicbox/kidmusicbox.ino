@@ -12,7 +12,6 @@
 #include "MozziAnalogSensor.h"
 #include "Wheel.h"
 #include "StepSequencer.h"
-// #include "Synth.h"
 
 #include <MozziGuts.h>
 #include <Oscil.h> // oscillator template
@@ -93,8 +92,8 @@ void setup()
 void updateControl()
 {
 
-  // buttonA.ledOn(vcaLevel); // >> 3 // broken because of synth encapsulation
-  // buttonB.ledOn(vcaLevel);
+  buttonA.ledOn(vcaLevel); // >> 3 
+  buttonB.ledOn(vcaLevel);
 
   int rotarySwitchPosition = rotarySwitch.getPosition();
   int steppingMode = rotarySwitchPosition % 4;
