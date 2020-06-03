@@ -11,7 +11,7 @@
 #include "RotarySwitch.h"
 #include "MozziAnalogSensor.h"
 #include "Wheel.h"
-#include "Synth.h"
+// #include "Synth.h"
 
 #include <MozziGuts.h>
 #include <Oscil.h> // oscillator template
@@ -73,6 +73,14 @@ int scalesModes[8][8] = {
 
 // use: Oscil <table_size, update_rate> oscilName (wavetable), look in .h file of table #included above
 Oscil<BROWNNOISE8192_NUM_CELLS, AUDIO_RATE> aNoise(BROWNNOISE8192_DATA);
+Oscil<SAW2048_NUM_CELLS, AUDIO_RATE> vcoSaw(SAW2048_DATA);
+Oscil<SQUARE_NO_ALIAS512_NUM_CELLS, AUDIO_RATE> vcoSquare(SQUARE_NO_ALIAS512_DATA);
+Oscil<SIN2048_NUM_CELLS, CONTROL_RATE> kFilterMod(SIN2048_DATA);
+Ead kEnvelope(CONTROL_RATE);
+WaveShaper<int> aCompress(WAVESHAPE_COMPRESS_512_TO_488_DATA);
+LowPassFilter lpf;
+int gain;
+int vco2semitones;
 
 EventDelay kDelay;           // for triggering envelope start
 Ead nEnvelope(CONTROL_RATE); // resolution will be CONTROL_RATE
@@ -115,19 +123,22 @@ RotarySwitch rotarySwitch(ROTARYSWITCH_PIN, 12);
 Wheel wheelEncoder(WHEEL_ENCODER_PIN1, WHEEL_ENCODER_PIN2);
 Button reedSwitchA(REED_SWITCH_1_PIN, false);
 Button reedSwitchB(REED_SWITCH_2_PIN, false);
-Synth synth;
 
 void setup()
 {
+
   // use float to set freq because it will be small and fractional
   aNoise.setFreq((float)AUDIO_RATE / BROWNNOISE8192_SAMPLERATE);
   randSeed(); // fresh random, MUST be called before startMozzi - wierd bug
-  startMozzi(CONTROL_RATE);
+  lpf.setResonance(240);
+  kFilterMod.setFreq(1.3f);
+  vco2semitones = -24;
   quarterNoteMs = 60000 / tempoBPM;
   evenEigth = quarterNoteMs * grooveRatio;
   oddEigth = quarterNoteMs * (1.0 - grooveRatio);
   kDelay.start(quarterNoteMs);
   steppingMode = 2;
+  startMozzi(CONTROL_RATE);
 
   Serial.begin(9600);
   while (!Serial)
@@ -149,7 +160,8 @@ void updateControl()
   if (kDelay.ready())
   {
     int wheelSpeed = wheelEncoder.getSpeed();
-    synth.setModulationFreq(0.1f + (float)wheelSpeed / 5.f);
+    float lfoFreq = 0.1f + (float)wheelSpeed / 5.f;
+    kFilterMod.setFreq(0.1f + lfoFreq);
     gatePatternIndex = 8;
 
     if (globalStep % 64 == 0)
@@ -162,7 +174,9 @@ void updateControl()
     { // action if gate ON
       int noteIndex = pitchStep % seqPitchLength;
       int note = baseNote + scales[selectedScale][noteIndex];
-      synth.playNote(note, 5, 800);
+      vcoSaw.setFreq(mtof(note));
+      vcoSquare.setFreq(mtof(note + vco2semitones));
+      kEnvelope.start(5, 800);
       switch (steppingMode)
       {
       case 0:
@@ -211,14 +225,22 @@ void updateControl()
   }
   aNoise.setPhase(rand((unsigned int)BROWNNOISE8192_NUM_CELLS)); // jump around in audio noise table to disrupt obvious looping
   noiseGain = (int)nEnvelope.next();
-  synth.controlHook();
+  byte cutoff_freq = map(kFilterMod.next(), -127, 127, 10, 255);
+  lpf.setCutoffFreq(cutoff_freq);
+  gain = (int)kEnvelope.next();
 }
 
 int updateAudio()
 {
   wheelEncoder.update();
   int noiseChannel = (noiseGain * aNoise.next()) >> 9;
-  int output = synth.audioHook(); // + noiseChannel;
+  char asig0 = vcoSaw.next();
+  char asig1 = vcoSquare.next();
+  // use a waveshaping table to squeeze 2 summed 8 bit signals into the range -244 to 243
+  int awaveshaped3 = aCompress.next(256u + asig0 + asig1) >> 2;
+  int filtered = lpf.next(awaveshaped3);
+  int filtered2 = lpf.next(filtered);
+  int output = (gain * filtered2) >> 7;
   return output;
 }
 
